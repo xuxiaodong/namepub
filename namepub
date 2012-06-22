@@ -1,0 +1,61 @@
+#!/usr/bin/env ruby
+#
+# name     : namepub, automatically rename epub file
+# author   : Xu Xiaodong <xxdlhy@gmail.com>
+# license  : GPL
+# created  : 2012 Apr 27
+# modified : 2012 Jun 22
+#
+
+require 'zip/zip'
+require 'nokogiri'
+
+# get content.opf in epub file
+def content(epub_file)
+  Zip::ZipInputStream.open(epub_file) do |io|
+    while entry = io.get_next_entry
+      return io.read if entry.name.match(/content\.opf/)
+    end
+  end
+end
+
+# parse content.opf
+def metadata(content)
+  doc = Nokogiri::XML(content)
+  doc.remove_namespaces!
+
+  metadata = {}
+  elements = %w[title creator]
+  elements.each do |elt|
+    metadata[elt] = doc.xpath("//#{elt}").text
+  end
+
+  return metadata
+end
+
+# only title
+def title(metadata)
+  "#{metadata['title']}"
+end
+
+# title and author
+def title_creator(metadata)
+  "#{metadata['title']} - #{metadata['creator']}"
+end
+
+# author and title
+def creator_title(metadata)
+  "#{metadata['creator']} - #{metadata['title']}"
+end
+
+if ARGV.empty?
+  puts "Usage: #{$0} <epub_file>"
+else
+  ARGV.each do |epub|
+    desc = "#{title(metadata(content(epub)))}.epub".downcase.gsub!(/\s+/, '_')
+    File.rename epub, desc
+    puts "#{epub} renamed to #{desc} ..."
+  end
+end
+
+# vim: ai:et:ts=2:sw=2:sts=2:tw=78:ft=ruby
